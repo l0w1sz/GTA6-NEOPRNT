@@ -1,0 +1,6 @@
+{
+  "name": "Liberty Pre-Press — Diretor de Arte GTA IV & Sublimação",
+  "description": "Estúdio automatizado de Direção de Arte estilo GTA IV (Liberty City) e Engenharia de Pré-Impressão para sublimação com saída JSON estruturada.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
