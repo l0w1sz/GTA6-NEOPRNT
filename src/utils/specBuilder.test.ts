@@ -77,7 +77,7 @@ test("validateGtaViSpec rejects tampered immutable parameters", () => {
 test("buildGtaViImagePrompt adapts to GTA 6 scene presets while enforcing #1C102A and zero text/HUD", () => {
   const overpassPrompt = buildGtaViImagePrompt(DEFAULT_GTA6_TUNING);
   assert.match(overpassPrompt, /GTA VI/);
-  assert.match(overpassPrompt, /overpass bridge/i);
+  assert.match(overpassPrompt, /coastal sunset sky/i);
   assert.match(overpassPrompt, /#1C102A/);
   assert.match(overpassPrompt, /no text/i);
 
@@ -89,3 +89,49 @@ test("buildGtaViImagePrompt adapts to GTA 6 scene presets while enforcing #1C102
   assert.match(oceanDrivePrompt, /Ocean Drive Art Deco/i);
   assert.match(oceanDrivePrompt, /#327A8A/);
 });
+
+test("buildGtaViSpec includes custom_logo_overlay when enabled and enforces 7-char cap", () => {
+  const specWithLogo = buildGtaViSpec("cabelo curto, barba aparada", {
+    enabled: true,
+    text: "LEONIDA999",
+    paletteStyle: "official_vi",
+    position: "bottom_center",
+    showTopWordmark: true,
+    topWordmarkScale: 1.15,
+    topWordmarkOffsetX: -12,
+    topWordmarkOffsetY: 8,
+    topWordmarkLineGap: 0.82,
+  });
+
+  assert.equal(specWithLogo.sublimation_print_specs.no_text_or_hud, false);
+  assert.deepEqual(specWithLogo.sublimation_print_specs.custom_logo_overlay, {
+    enabled: true,
+    text: "LEONIDA",
+    palette_style: "official_vi",
+    style: "GTA_VI_SUNSET_GRADIENT_OUTLINE",
+    position: "bottom_center",
+    top_wordmark: true,
+    top_wordmark_adjustments: {
+      scale: 1.15,
+      offset_x: -12,
+      offset_y: 8,
+      line_gap: 0.82,
+    },
+  });
+  assert.equal(validateGtaViSpec(specWithLogo).valid, true);
+
+  const oversizedOverlay = {
+    ...specWithLogo,
+    sublimation_print_specs: {
+      ...specWithLogo.sublimation_print_specs,
+      custom_logo_overlay: {
+        ...specWithLogo.sublimation_print_specs.custom_logo_overlay!,
+        text: "TOOLONG8",
+      },
+    },
+  };
+  const invalidCheck = validateGtaViSpec(oversizedOverlay);
+  assert.equal(invalidCheck.valid, false);
+  assert.ok(invalidCheck.errors.some((e) => e.includes("7 caracteres")));
+});
+

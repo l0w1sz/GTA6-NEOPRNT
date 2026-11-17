@@ -1,3 +1,5 @@
+import type { LogoPaletteStyle, LogoPosition } from "./logoLayout.ts";
+
 export type FranchiseStyle = "GTA_VI_VICE_CITY";
 
 export type GtaViSceneSetting =
@@ -20,6 +22,21 @@ export interface GtaViArtDirectionTuning {
   lightingProfile: GtaViLightingProfile;
   textureMode: GtaViTextureMode;
   vignetteDepth: "soft" | "deep";
+}
+
+export interface CustomLogoOverlaySpec {
+  enabled: true;
+  text: string;
+  palette_style: LogoPaletteStyle;
+  style: "GTA_VI_SUNSET_GRADIENT_OUTLINE";
+  position: LogoPosition;
+  top_wordmark: boolean;
+  top_wordmark_adjustments?: {
+    scale: number;
+    offset_x: number;
+    offset_y: number;
+    line_gap: number;
+  };
 }
 
 export interface GtaViSublimationSpec {
@@ -54,7 +71,8 @@ export interface GtaViSublimationSpec {
     black_point_compensation: true;
     max_black_hex: "#1C102A";
     edge_treatment: "feathered_fade_for_fabric";
-    no_text_or_hud: true;
+    no_text_or_hud: boolean;
+    custom_logo_overlay?: CustomLogoOverlaySpec;
   };
 }
 
@@ -76,11 +94,11 @@ export const FIXED_VICE_BACKGROUND_ELEMENTS = [
 ] as const;
 
 export const GTA6_SWATCHES: readonly { hex: string; role: string }[] = [
-  { hex: "#1C102A", role: "Preto Máximo Violeta (Plum)" },
-  { hex: "#8B1E4F", role: "Magenta Profundo / Neon" },
-  { hex: "#D93B58", role: "Coral Carmesim / Rim Light" },
-  { hex: "#F28C38", role: "Laranja Pôr do Sol Costeiro" },
-  { hex: "#327A8A", role: "Azul-Turquesa Vice City" },
+  { hex: "#1C102A", role: "Plum Sombra Máxima (Sublimação)" },
+  { hex: "#4E6CF0", role: "Céu Crepúsculo / Gradiente VI" },
+  { hex: "#F03FA8", role: "Magenta Flamingo Neon" },
+  { hex: "#F9A66C", role: "Pêssego & Ouro Pôr do Sol" },
+  { hex: "#3CC4B8", role: "Turquesa Costeiro Vice Beach" },
 ];
 
 export const GTA6_SCENE_OPTIONS: {
@@ -90,23 +108,23 @@ export const GTA6_SCENE_OPTIONS: {
 }[] = [
   {
     id: "overpass_sunset",
-    label: "Viaduto & Neon",
-    description: "Viaduto urbano, fios elétricos, prédios Art Déco e névoa #1C102A",
-  },
-  {
-    id: "art_deco_ocean_drive",
-    label: "Ocean Drive Art Déco",
-    description: "Fachadas Art Déco pastel, palmeiras e horizonte costeiro",
+    label: "Capa Pôr do Sol & Neon",
+    description: "Céu azul-violeta a rosa, palmeiras e prédios Art Déco",
   },
   {
     id: "palm_beach_golden",
-    label: "Praia & Palmeiras",
-    description: "Orla tropical dourada ao entardecer com mar turquesa #327A8A",
+    label: "Orla Ocean Teal",
+    description: "Mar turquesa, skyline distante e entardecer pastel",
+  },
+  {
+    id: "art_deco_ocean_drive",
+    label: "Ocean Drive & Carro",
+    description: "Fachadas pastel, palmeiras e luz quente lateral",
   },
   {
     id: "neon_strip_twilight",
-    label: "Crepúsculo Violeta",
-    description: "Céu roxo-magenta intenso com reflexos neon na avenida",
+    label: "Crepúsculo Leonida",
+    description: "Fios elétricos, névoa roxo-rosa e luz de estrada",
   },
 ];
 
@@ -118,8 +136,28 @@ export const DEFAULT_GTA6_TUNING: GtaViArtDirectionTuning = {
   vignetteDepth: "soft",
 };
 
-export function buildGtaViSpec(detectedUserFeatures: string): GtaViSublimationSpec {
+export interface BuildLogoOverlayInput {
+  enabled: boolean;
+  text: string;
+  paletteStyle?: LogoPaletteStyle;
+  position: LogoPosition;
+  showTopWordmark: boolean;
+  topWordmarkScale?: number;
+  topWordmarkOffsetX?: number;
+  topWordmarkOffsetY?: number;
+  topWordmarkLineGap?: number;
+}
+
+export function buildGtaViSpec(
+  detectedUserFeatures: string,
+  logoOverlay?: BuildLogoOverlayInput
+): GtaViSublimationSpec {
   const cleanedFeatures = detectedUserFeatures.trim().replace(/\s+/g, " ");
+  const hasActiveLogo =
+    Boolean(logoOverlay?.enabled) &&
+    (logoOverlay?.text.trim().length ?? 0) > 0;
+  const cappedText = (logoOverlay?.text ?? "").slice(0, 7);
+
   return {
     franchise_style: "GTA_VI_VICE_CITY",
     art_direction: {
@@ -155,7 +193,31 @@ export function buildGtaViSpec(detectedUserFeatures: string): GtaViSublimationSp
       black_point_compensation: true,
       max_black_hex: "#1C102A",
       edge_treatment: "feathered_fade_for_fabric",
-      no_text_or_hud: true,
+      no_text_or_hud: !hasActiveLogo,
+      ...(hasActiveLogo
+        ? {
+            custom_logo_overlay: {
+              enabled: true,
+              text: cappedText,
+              palette_style: logoOverlay?.paletteStyle ?? "official_vi",
+              style: "GTA_VI_SUNSET_GRADIENT_OUTLINE",
+              position: logoOverlay?.position ?? "bottom_center",
+              top_wordmark: Boolean(logoOverlay?.showTopWordmark),
+              ...(logoOverlay?.showTopWordmark
+                ? {
+                    top_wordmark_adjustments: {
+                      scale: Number((logoOverlay.topWordmarkScale ?? 1).toFixed(2)),
+                      offset_x: Math.round(logoOverlay.topWordmarkOffsetX ?? 0),
+                      offset_y: Math.round(logoOverlay.topWordmarkOffsetY ?? 0),
+                      line_gap: Number(
+                        (logoOverlay.topWordmarkLineGap ?? 0.78).toFixed(2)
+                      ),
+                    },
+                  }
+                : {}),
+            },
+          }
+        : {}),
     },
   };
 }
@@ -239,8 +301,16 @@ export function validateGtaViSpec(candidate: unknown): {
     if (print.edge_treatment !== "feathered_fade_for_fabric") {
       errors.push("edge_treatment inválido.");
     }
-    if (print.no_text_or_hud !== true) {
-      errors.push("no_text_or_hud deve ser true.");
+    if (typeof print.no_text_or_hud !== "boolean") {
+      errors.push("no_text_or_hud deve ser booleano.");
+    }
+    const overlay = print.custom_logo_overlay as
+      | Record<string, unknown>
+      | undefined;
+    if (overlay) {
+      if (typeof overlay.text !== "string" || overlay.text.length > 7) {
+        errors.push("Texto do logo deve ter no máximo 7 caracteres.");
+      }
     }
   }
 
@@ -252,27 +322,27 @@ export function buildGtaViImagePrompt(
 ): string {
   const sceneMap: Record<GtaViSceneSetting, string> = {
     overpass_sunset:
-      "Background shows a Vice City elevated coastal highway overpass bridge, utility poles with silhouette power lines crossing a glowing pink-orange sunset sky, Art Deco buildings, and palm tree silhouettes rising through deep #1C102A purple mist at the bottom",
+      "Background shows a Vice City coastal sunset sky transitioning from periwinkle twilight blue (#4E6CF0) through violet-magenta (#8B1E4F / #F03FA8) into peach-gold horizon (#F9A66C), with Art Deco pastel buildings, palm tree silhouettes, and deep #1C102A purple mist at the bottom",
     art_deco_ocean_drive:
-      "Background shows Vice City Ocean Drive Art Deco hotels in pastel coral and cyan, palm tree silhouettes, and a glowing coastal sunset horizon without any signs or text",
+      "Background shows Vice City Ocean Drive Art Deco hotels in pastel peach and turquoise, palm tree silhouettes, and a glowing coastal sunset horizon without any signs or text",
     palm_beach_golden:
-      "Background shows a tropical Vice Beach shoreline with turquoise water (#327A8A), tall palm tree silhouettes, distant Art Deco skyline, and a warm sunset horizon",
+      "Background shows a tropical Vice Beach shoreline with turquoise water (#327A8A), distant Art Deco skyline, tall palm tree silhouettes, and a pastel peach-pink sunset sky",
     neon_strip_twilight:
-      "Background shows a Vice City coastal twilight strip with glowing magenta (#8B1E4F) and teal (#327A8A) ambient reflections, palm silhouettes, and purple twilight fog",
+      "Background shows a Leonida coastal twilight highway strip with utility wires against a glowing violet-rose sunset sky, palm silhouettes, and purple twilight fog",
   };
 
   const inkClause =
     tuning.inkWeight === "bold"
-      ? "bold expressive black-plum ink outlines and confident comic brush linework"
+      ? "bold expressive dark-plum ink outlines and confident painted key-art shading"
       : "clean refined brush-and-ink outlines with saturated digital painting transitions";
 
   const lightingMap: Record<GtaViLightingProfile, string> = {
     neon_magenta_rim:
-      "strong tropical neon magenta (#8B1E4F) and crimson coral (#D93B58) rim lighting along the hair, cheek, and jacket edge, balanced with sunset orange (#F28C38) glow and coastal teal (#327A8A) shadows",
+      "strong tropical neon magenta (#F03FA8 / #8B1E4F) and coral-peach (#F9A66C) rim lighting along the hair, jaw, and shoulders, balanced with twilight blue (#4E6CF0) and coastal teal (#327A8A) ambient shadows",
     golden_sunset:
-      "warm sunset tangerine (#F28C38) backlighting and coastal teal (#327A8A) fill shadows with subtle magenta (#8B1E4F) rim accents",
+      "warm sunset peach-gold (#F9A66C) backlighting and coastal teal (#327A8A) fill shadows with subtle flamingo-pink (#D93B58) rim accents",
     twilight_plum:
-      "moody twilight plum (#1C102A) atmosphere lit by vivid coral (#D93B58) and neon magenta (#8B1E4F) key highlights",
+      "moody twilight plum (#1C102A) atmosphere lit by vivid coral (#D93B58) and neon orchid-magenta (#8B1E4F) key highlights",
   };
 
   const textureClause =
